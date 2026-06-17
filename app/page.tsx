@@ -23,18 +23,6 @@ import {
 /*  타입 정의                                                          */
 /* ------------------------------------------------------------------ */
 
-type OscType = "sine" | "square" | "sawtooth" | "triangle";
-
-type MeowNote = {
-  at: number; // 시작 오프셋(초)
-  startFreq: number;
-  peakFreq: number;
-  endFreq: number;
-  duration: number;
-  type?: OscType;
-  gain?: number;
-};
-
 type Situation = {
   id: string;
   label: string;
@@ -42,7 +30,9 @@ type Situation = {
   emoji: string;
   Icon: typeof Cat;
   color: string; // 버튼 배경 tailwind 클래스
-  notes: MeowNote[];
+  src: string; // 실제 고양이 소리 파일 경로
+  maxSec?: number; // 재생 최대 길이(초)
+  credit: string; // 출처/라이선스 표기
 };
 
 type Emotion = {
@@ -82,24 +72,18 @@ const SITUATIONS: Situation[] = [
     emoji: "🍚",
     Icon: Drumstick,
     color: "bg-coral",
-    notes: [
-      { at: 0.0, startFreq: 420, peakFreq: 720, endFreq: 480, duration: 0.32, type: "sawtooth" },
-      { at: 0.4, startFreq: 440, peakFreq: 760, endFreq: 500, duration: 0.34, type: "sawtooth" },
-      { at: 0.85, startFreq: 400, peakFreq: 640, endFreq: 360, duration: 0.55, type: "sawtooth" },
-    ],
+    src: "/sounds/feed.oga",
+    credit: "Heismark · Public Domain",
   },
   {
     id: "play",
     label: "놀고 싶을 때",
-    hint: "들뜬 트릴",
+    hint: "들뜬 냥",
     emoji: "🧶",
     Icon: Sparkles,
     color: "bg-lav",
-    notes: [
-      { at: 0.0, startFreq: 760, peakFreq: 980, endFreq: 820, duration: 0.16, type: "triangle" },
-      { at: 0.2, startFreq: 820, peakFreq: 1040, endFreq: 880, duration: 0.16, type: "triangle" },
-      { at: 0.4, startFreq: 700, peakFreq: 1100, endFreq: 760, duration: 0.22, type: "triangle" },
-    ],
+    src: "/sounds/play.ogg",
+    credit: "Commander Keane · CC BY-SA 4.0",
   },
   {
     id: "greet",
@@ -108,33 +92,30 @@ const SITUATIONS: Situation[] = [
     emoji: "💗",
     Icon: HeartHandshake,
     color: "bg-paw",
-    notes: [
-      { at: 0.0, startFreq: 600, peakFreq: 900, endFreq: 700, duration: 0.18, type: "triangle" },
-      { at: 0.26, startFreq: 520, peakFreq: 820, endFreq: 560, duration: 0.42, type: "sawtooth" },
-    ],
+    src: "/sounds/greet.ogg",
+    credit: "Jeanot · CC BY-SA 2.5",
   },
   {
     id: "sleepy",
     label: "졸릴 때",
-    hint: "나른한 냥",
+    hint: "그르릉 냥",
     emoji: "😴",
     Icon: Moon,
     color: "bg-sky",
-    notes: [
-      { at: 0.0, startFreq: 360, peakFreq: 460, endFreq: 300, duration: 0.9, type: "sine", gain: 0.22 },
-    ],
+    src: "/sounds/sleepy.ogg",
+    maxSec: 7,
+    credit: "Barvinok · CC BY-SA 3.0",
   },
   {
     id: "attention",
     label: "관심받고 싶을 때",
-    hint: "애교 어필",
+    hint: "수다쟁이 샴 냥",
     emoji: "✨",
     Icon: Bell,
     color: "bg-mint",
-    notes: [
-      { at: 0.0, startFreq: 520, peakFreq: 760, endFreq: 560, duration: 0.3, type: "triangle" },
-      { at: 0.42, startFreq: 560, peakFreq: 820, endFreq: 600, duration: 0.36, type: "triangle" },
-    ],
+    src: "/sounds/attention.wav",
+    maxSec: 6,
+    credit: "freemaster2 · CC0",
   },
 ];
 
@@ -247,62 +228,6 @@ function median(values: number[]): number {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Web Audio: 고양이 울음소리 합성                                    */
-/* ------------------------------------------------------------------ */
-
-function playNote(ctx: AudioContext, note: MeowNote, base: number) {
-  const t0 = base + note.at;
-  const dur = note.duration;
-  const osc = ctx.createOscillator();
-  const osc2 = ctx.createOscillator();
-  const lfo = ctx.createOscillator();
-  const lfoGain = ctx.createGain();
-  const filter = ctx.createBiquadFilter();
-  const gain = ctx.createGain();
-  const peak = note.gain ?? 0.26;
-
-  osc.type = note.type ?? "sawtooth";
-  osc2.type = "triangle";
-
-  // "야-옹" 피치 컨투어: 빠르게 올라갔다 천천히 내려옴
-  for (const o of [osc, osc2]) {
-    const detune = o === osc2 ? 1.006 : 1;
-    o.frequency.setValueAtTime(note.startFreq * detune, t0);
-    o.frequency.linearRampToValueAtTime(note.peakFreq * detune, t0 + dur * 0.28);
-    o.frequency.linearRampToValueAtTime(note.endFreq * detune, t0 + dur);
-  }
-
-  // 비브라토(살짝 떨리는 냥 느낌)
-  lfo.frequency.value = 16;
-  lfoGain.gain.value = note.peakFreq * 0.018;
-  lfo.connect(lfoGain).connect(osc.frequency);
-
-  // 포먼트 느낌의 로우패스
-  filter.type = "lowpass";
-  filter.Q.value = 7;
-  filter.frequency.setValueAtTime(note.peakFreq * 3.2, t0);
-  filter.frequency.linearRampToValueAtTime(note.peakFreq * 2.2, t0 + dur);
-
-  // 게인 엔벨로프
-  gain.gain.setValueAtTime(0.0001, t0);
-  gain.gain.linearRampToValueAtTime(peak, t0 + 0.04);
-  gain.gain.setValueAtTime(peak, t0 + dur * 0.55);
-  gain.gain.exponentialRampToValueAtTime(0.0008, t0 + dur);
-
-  osc.connect(filter);
-  osc2.connect(filter);
-  filter.connect(gain).connect(ctx.destination);
-
-  osc.start(t0);
-  osc2.start(t0);
-  lfo.start(t0);
-  const stopAt = t0 + dur + 0.05;
-  osc.stop(stopAt);
-  osc2.stop(stopAt);
-  lfo.stop(stopAt);
-}
-
-/* ------------------------------------------------------------------ */
 /*  메인 컴포넌트                                                      */
 /* ------------------------------------------------------------------ */
 
@@ -316,6 +241,8 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
 
   const ctxRef = useRef<AudioContext | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const stopTimerRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -336,24 +263,33 @@ export default function Home() {
     return ctxRef.current;
   }, []);
 
-  /* ---------- 상황별 소리 재생 ---------- */
-  const playSituation = useCallback(
-    (s: Situation) => {
-      const ctx = getCtx();
-      void ctx.resume();
-      const base = ctx.currentTime + 0.02;
-      let total = 0;
-      for (const note of s.notes) {
-        playNote(ctx, note, base);
-        total = Math.max(total, note.at + note.duration);
-      }
-      setPlayingId(s.id);
-      window.setTimeout(() => {
+  /* ---------- 상황별 실제 고양이 소리 재생 ---------- */
+  const playSituation = useCallback((s: Situation) => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+      audioRef.current.preload = "auto";
+    }
+    const a = audioRef.current;
+    if (stopTimerRef.current != null) {
+      window.clearTimeout(stopTimerRef.current);
+      stopTimerRef.current = null;
+    }
+    a.pause();
+    a.currentTime = 0;
+    if (!a.src.endsWith(s.src)) a.src = s.src;
+    a.onended = () => setPlayingId((cur) => (cur === s.id ? null : cur));
+    void a.play().catch(() => setPlayingId(null));
+    setPlayingId(s.id);
+
+    // 긴 소리(그르릉 등)는 일정 시간 후 자동 정지
+    if (s.maxSec) {
+      stopTimerRef.current = window.setTimeout(() => {
+        a.pause();
+        a.currentTime = 0;
         setPlayingId((cur) => (cur === s.id ? null : cur));
-      }, (total + 0.1) * 1000);
-    },
-    [getCtx]
-  );
+      }, s.maxSec * 1000);
+    }
+  }, []);
 
   /* ---------- 녹음 정리 ---------- */
   const cleanupRecording = useCallback(() => {
@@ -506,6 +442,8 @@ export default function Home() {
   useEffect(() => {
     return () => {
       cleanupRecording();
+      if (stopTimerRef.current != null) window.clearTimeout(stopTimerRef.current);
+      audioRef.current?.pause();
       void ctxRef.current?.close();
     };
   }, [cleanupRecording]);
@@ -587,7 +525,7 @@ export default function Home() {
             </div>
             <p className="mt-3 flex items-center justify-center gap-1 text-center text-[11px] font-semibold text-cocoa/45">
               <AudioLines className="h-3.5 w-3.5" />
-              모든 소리는 브라우저에서 실시간 합성돼요(무료·오프라인)
+              실제 고양이 녹음(오픈 라이선스)을 들려줘요
             </p>
           </section>
         )}
@@ -751,8 +689,12 @@ export default function Home() {
           </section>
         )}
 
-        <footer className="mt-4 text-center text-[10px] font-semibold text-cocoa/35">
-          🐱 애플이 전용 · 100% 프론트엔드 · 외부 API 없음
+        <footer className="mt-4 space-y-1 text-center text-[10px] font-semibold text-cocoa/35">
+          <p>🐱 애플이 전용 · 100% 프론트엔드 · 외부 API 없음</p>
+          <p className="leading-snug">
+            소리 출처: Wikimedia Commons (PD/CC0/CC BY-SA) · Heismark, Commander
+            Keane, Jeanot, Barvinok, freemaster2
+          </p>
         </footer>
       </div>
     </main>
