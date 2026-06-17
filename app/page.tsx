@@ -83,7 +83,7 @@ const SITUATIONS: Situation[] = [
     Icon: Sparkles,
     color: "bg-lav",
     src: "/sounds/play.ogg",
-    credit: "Commander Keane · CC BY-SA 4.0",
+    credit: "Heismark · Public Domain",
   },
   {
     id: "greet",
@@ -692,8 +692,8 @@ export default function Home() {
         <footer className="mt-4 space-y-1 text-center text-[10px] font-semibold text-cocoa/35">
           <p>🐱 애플이 전용 · 100% 프론트엔드 · 외부 API 없음</p>
           <p className="leading-snug">
-            소리 출처: Wikimedia Commons (PD/CC0/CC BY-SA) · Heismark, Commander
-            Keane, Jeanot, Barvinok, freemaster2
+            소리 출처: Wikimedia Commons (PD/CC0/CC BY-SA) · Heismark, Jeanot,
+            Barvinok, freemaster2
           </p>
         </footer>
       </div>
