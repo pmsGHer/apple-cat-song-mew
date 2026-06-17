@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fff7f2;
+  --foreground: #5b4a45;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-nunito), "Apple SD Gothic Neo", system-ui, sans-serif;
+
+  --color-cream: #fff7f2;
+  --color-peach: #ffd9c7;
+  --color-coral: #ffb4a2;
+  --color-paw: #f7a399;
+  --color-mint: #cdeccf;
+  --color-sky: #c7e4ef;
+  --color-lav: #e3d5f1;
+  --color-cocoa: #5b4a45;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, #ffe7dd 0%, transparent 55%),
+    radial-gradient(1000px 600px at 110% 10%, #e3d5f1 0%, transparent 50%),
+    linear-gradient(180deg, #fff7f2 0%, #fdeee6 100%);
+  background-attachment: fixed;
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  overscroll-behavior: none;
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes bounce-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-pop {
+  animation: pop 0.25s ease-out;
+}
+
+.animate-wiggle {
+  animation: wiggle 0.6s ease-in-out infinite;
+}
+
+.animate-bounce-soft {
+  animation: bounce-soft 1.6s ease-in-out infinite;
+}
+
+/* 부드러운 스크롤바 (혹시 작은 화면에서 스크롤될 때) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #ffd9c7;
+  border-radius: 999px;
+}
